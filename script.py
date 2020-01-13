@@ -39,7 +39,7 @@ def mostFrequent(arr, n):
 
 
 	
-imgurl = "https://i.redd.it/es9mp2u6vf241.jpg"
+imgurl = "<url>"
 
 
 '''
