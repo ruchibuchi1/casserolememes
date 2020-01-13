@@ -1,15 +1,51 @@
+import urllib.request as req
 import requests
 import json
 import jsonpath
 from nltk import pos_tag
+import re
 from PIL import Image
 
+
+# Python3 program to find the most  
+# frequent element in an array. 
+  
+def mostFrequent(arr, n):
+    # Sort the array 
+    arr.sort() 
+  
+    # find the max frequency using 
+    # linear traversal 
+    max_count = 1; res = arr[0]; curr_count = 1
+      
+    for i in range(1, n):  
+        if (arr[i] == arr[i - 1]): 
+            curr_count += 1
+              
+        else : 
+            if (curr_count > max_count):  
+                max_count = curr_count 
+                res = arr[i - 1] 
+              
+            curr_count = 1
+      
+    # If last element is most frequent 
+    if (curr_count > max_count): 
+      
+        max_count = curr_count 
+        res = arr[n - 1] 
+      
+    return res 
+
+
+	
+imgurl = "https://i.redd.it/es9mp2u6vf241.jpg"
 
 
 '''
 download and save the uri of the latest meme
 '''
-
+req.urlretrieve(imgurl, "meme.jpg")
 
 
 
@@ -18,17 +54,17 @@ call vision api to parse words from the meme
 '''
 url = "https://vision.googleapis.com/v1/images:annotate"
 querystring = {"key": "<key>"}
-payload = "{\"requests\": [  { \"image\": {  \"source\": {    \"imageUri\": \"https://i.redd.it/i4el1q6ql7841.jpg\" }  },  \"features\": [ { \"type\": \"TEXT_DETECTION\"  } ] }  ]}"
+payload = "{\"requests\": [  { \"image\": {  \"source\": {    \"imageUri\": \"" + imgurl + "\" }  },  \"features\": [ { \"type\": \"TEXT_DETECTION\"  } ] }  ]}"
 headers = {
     'cache-control': "no-cache",
     'Content-Type': "application/json"
 }
 
-#response = requests.request("POST", url, data=payload, headers=headers, params=querystring)
-#visionOutput = json.loads(response.text)
+response = requests.request("POST", url, data=payload, headers=headers, params=querystring)
+visionOutput = json.loads(response.text)
 
-with open('vision_output.json') as f:  #loading from json file to limit request rate - tied to billing account
-  visionOutput = json.load(f)
+#with open('vision_output.json') as f:  #loading from json file to limit request rate - tied to billing account
+  #visionOutput = json.load(f)
 
 wordsOnImage = jsonpath.jsonpath(visionOutput, "responses[0].textAnnotations[*].description")
 print(wordsOnImage)
@@ -44,14 +80,17 @@ for word in wordsOnImage[1:]:  #skip first iteration because vision api returns 
         nouns.append(word)
 print(nouns)
 
-wordToReplace = nouns[0]  #can choose a different algorithm for this
+#wordToReplace = nouns[0]  #can choose a different algorithm for this
+wordToReplace = mostFrequent(nouns, len(nouns))
 print('word to replace: ' + wordToReplace)
+
+print('escaped word: ' + wordToReplace.replace("'", r"\'").replace("@", r"\@"))
 
 
 '''
 parse the vision api response to get the coordinates of each instance of the word and replace with the casserole image)
 '''
-replaceCoordinates = jsonpath.jsonpath(visionOutput, "$.responses[0].textAnnotations[?(@.description=='" + wordToReplace + "')].boundingPoly.vertices")
+replaceCoordinates = jsonpath.jsonpath(visionOutput, "$.responses[0].textAnnotations[?(@.description=='" +  wordToReplace.replace("'", r"\'").replace("@", r"\@") + "')].boundingPoly.vertices")
 print(replaceCoordinates)
 
 #coordinate (0,0) is top-left of the image
