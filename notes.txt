@@ -1,0 +1,102 @@
+get top daily post from subreddit:
+
+https://old.reddit.com/r/dankmemes/top/.json?t=day&limit=1
+jsonpath:  $.data.children[0].data.url
+python:  json[data][children][0][data][url]
+------------------------
+send request to vision api, include uri of image
+
+https://cloud.google.com/vision/docs/ocr
+price for 10k requests/month is 13.50/month
+https://cloud.google.com/products/calculator/#id=1126fdcd-8b28-4dd9-8b49-c962df0eca1a
+
+$.responses[0].textAnnotations[*].description
+------------------------
+get the parts of speech for each word in the image.  for each noun, get the one that has the most occurances.  in case of a tie get the noun that appears first.  get the pixel coordinates of that noun.
+Need to have an image for singular and plural casseroles.  Replace the NNS and NNPS words with the plural image only.  Same for single.
+
+use python natural language toolkit (nltk) library
+https://www.nltk.org/
+search for NN, NNS, NNP, and NNPS tags
+------------------------
+overlay the casserole image(s) onto the first image at the coordinates of each of the targetted words.  might have to first resize the casserole image based on the width/height of each word it is overlaying.
+
+can use python imaging library (PIL)
+http://effbot.org/imagingbook/image.htm#tag-Image.Image.paste
+http://effbot.org/imagingbook/image.htm#tag-Image.Image.resize
+https://stackoverflow.com/questions/28407462/how-to-paste-an-image-onto-a-larger-image-using-pillow
+
+
+https://i.redd.it/es9mp2u6vf241.jpg
+https://i.imgur.com/DUus51W.jpg
+
+------------------------------------------------------------------------------------
+SpaCy:  https://spacy.io/usage/spacy-101
+tag lookups:  https://nlp.stanford.edu/software/dependencies_manual.pdf
+
+syntactic dependency:  determine direct object
+is it part of stop list (most common words in language):  no
+
+
+weight these as percentages so that it's pseudo-random:
+
+1.  Singular noun?  (NN, NNP)
+2.  Not in stop list?
+3.  Direct object depedency?
+4.  Compound dependency?
+
+
+ranked lists per category:
+pos_:
+NOUN
+PROPN
+PRON
+
+tag_:
+NN/NNS
+NNP/NNPS
+PRP
+
+dep_:
+compound
+dobj
+npadvmod
+attr
+nsubj
+pobj
+conj
+
+
+++ Nouns (NN, NNP)
++  Pronouns (PRP)  (always replace with plural "casseroles")
+0  Words it doesn't understand
+-  All other POS
+
+
+compound (compound)
+noun phrase as adverbial modifier (npadvmod)
+direct object (dobj)
+attribute (attr)
+nominal subject (nsubj)
+object of proposition (pobj)
+conjunct (conj)
+
+
+---------------------------------------------------------------------
+--what about sentences with no nouns/pronouns?
+Learn to swim, learn to fly
+
+--how to chunk text into sentences (if multiple sentences in the meme)?  Sentences are important in order to determine accurate dependency tags.
+
+
+
+
+
+
+
+
+
+
+
+
+
