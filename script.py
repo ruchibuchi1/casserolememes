@@ -5,41 +5,40 @@ import jsonpath
 from nltk import pos_tag
 import re
 from PIL import Image
+import spacy
 
 
-# Python3 program to find the most  
-# frequent element in an array. 
-  
-def mostFrequent(arr, n):
-    # Sort the array 
-    arr.sort() 
-  
-    # find the max frequency using 
-    # linear traversal 
-    max_count = 1; res = arr[0]; curr_count = 1
-      
-    for i in range(1, n):  
-        if (arr[i] == arr[i - 1]): 
-            curr_count += 1
-              
-        else : 
-            if (curr_count > max_count):  
-                max_count = curr_count 
-                res = arr[i - 1] 
-              
-            curr_count = 1
-      
-    # If last element is most frequent 
-    if (curr_count > max_count): 
-      
-        max_count = curr_count 
-        res = arr[n - 1] 
-      
-    return res 
+def getWordToReplace(memeText):
+    nlp = spacy.load("en_core_web_sm")
+    doc = nlp(memeText)
+
+    ranking = {}
+    tagScore = {'NN': 6, 'NNS': 6, 'NNP': 4, 'NNPS': 4, 'PRP': 2}
+    depScore = {'compound': 8, 'dobj': 7, 'npadvmod': 6, 'attr': 5, 'amod': 4, 'nsubj': 3, 'pobj': 2, 'conj': 1}
+    for token in doc:
+        print(token.text, token.tag_, token.dep_, token.shape_, token.is_alpha, token.is_stop)
+        if token.is_stop:
+            ranking[token] = -1
+        elif not token.is_alpha:
+            ranking[token] = -1
+        else:
+            value = 0
+            if token.tag_ in tagScore:
+                value += tagScore[token.tag_]
+            if token.dep_ in depScore:
+                value += depScore[token.dep_]
+            ranking[token] = value
+
+    print(ranking)
+    return str(max(ranking, key=ranking.get))
 
 
-	
-imgurl = "<url>"
+    
+    
+    
+imgurl = "https://i.redd.it/qj0j9t5xpej81.jpg" 
+#imgurl = "https://i.imgur.com/DUus51W.jpg"
+apiKey = "";
 
 
 '''
@@ -53,7 +52,7 @@ req.urlretrieve(imgurl, "meme.jpg")
 call vision api to parse words from the meme
 '''
 url = "https://vision.googleapis.com/v1/images:annotate"
-querystring = {"key": "<key>"}
+querystring = {"key": apiKey}
 payload = "{\"requests\": [  { \"image\": {  \"source\": {    \"imageUri\": \"" + imgurl + "\" }  },  \"features\": [ { \"type\": \"TEXT_DETECTION\"  } ] }  ]}"
 headers = {
     'cache-control': "no-cache",
@@ -63,6 +62,9 @@ headers = {
 response = requests.request("POST", url, data=payload, headers=headers, params=querystring)
 visionOutput = json.loads(response.text)
 
+with open('response.txt', 'w') as outfile:
+    json.dump(visionOutput, outfile)
+
 #with open('vision_output.json') as f:  #loading from json file to limit request rate - tied to billing account
   #visionOutput = json.load(f)
 
@@ -70,27 +72,24 @@ wordsOnImage = jsonpath.jsonpath(visionOutput, "responses[0].textAnnotations[*].
 print(wordsOnImage)
 
 
-'''
-use nltk to get the nouns on the image and pick the word to replace
-'''
-nouns = []
-for word in wordsOnImage[1:]:  #skip first iteration because vision api returns the full text block in the first element of the response.  the words start from the second element
-    print(pos_tag([word]))
-    if [x[1] for x in pos_tag([word])][0] == 'NN':
-        nouns.append(word)
-print(nouns)
 
-#wordToReplace = nouns[0]  #can choose a different algorithm for this
-wordToReplace = mostFrequent(nouns, len(nouns))
-print('word to replace: ' + wordToReplace)
+'''
+use Spacy to get the word to replace
+'''
+memeText = "";
+for word in wordsOnImage[1:]:
+    memeText += word + " "
+print(memeText)
 
-print('escaped word: ' + wordToReplace.replace("'", r"\'").replace("@", r"\@"))
+wordToReplace = getWordToReplace(memeText)
+print(wordToReplace)
+
 
 
 '''
 parse the vision api response to get the coordinates of each instance of the word and replace with the casserole image)
 '''
-replaceCoordinates = jsonpath.jsonpath(visionOutput, "$.responses[0].textAnnotations[?(@.description=='" +  wordToReplace.replace("'", r"\'").replace("@", r"\@") + "')].boundingPoly.vertices")
+replaceCoordinates = jsonpath.jsonpath(visionOutput, "$.responses[0].textAnnotations[?(@.description=='" +  wordToReplace + "')].boundingPoly.vertices")
 print(replaceCoordinates)
 
 #coordinate (0,0) is top-left of the image
@@ -99,10 +98,19 @@ for coordinate in replaceCoordinates:  #vision api returns coordinates of top-le
     '''
     resize the casserole image based on dimensions of the word to replace
     '''
-    width = coordinate[1]['x'] - coordinate[0]['x']
-    height = coordinate[3]['y'] - coordinate[0]['y']
+    xCoordinates = [coordinate[0]['x'], coordinate[1]['x'], coordinate[2]['x'], coordinate[3]['x']]
+    yCoordinates = [coordinate[0]['y'], coordinate[1]['y'], coordinate[2]['y'], coordinate[3]['y']]
+    
+    xCoordinateMin = min(xCoordinates)
+    xCoordinateMax = max(xCoordinates)
+    yCoordinateMin = min(yCoordinates)
+    yCoordinateMax = max(yCoordinates)
+    
+    width = xCoordinateMax - xCoordinateMin
+    height = yCoordinateMax - yCoordinateMin
     
     casserole = Image.open('casserole.png')
+    print('width: ' + str(width) + ' height: ' + str(height))
     casseroleTmp = casserole.resize((width, height))
     
     
@@ -117,4 +125,5 @@ for coordinate in replaceCoordinates:  #vision api returns coordinates of top-le
     
     memeCopy.paste(casseroleTmp, (coordinate[0]['x'], coordinate[0]['y']))  #give the top-left coordinate of the replacement area as the position to paste
     memeCopy.save('meme_copy.jpg')
+
 
